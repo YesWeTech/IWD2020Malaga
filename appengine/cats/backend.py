@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
+import logging
 from google.cloud import ndb
 from typing import List
 
 from cats import models
 
 client = ndb.Client()
+logger = logging.getLogger('app')
 
 
 def _cat_to_ndb(cat: models.Cat) -> models.CatNDB:
@@ -23,6 +25,7 @@ def _ndb_to_cat(cat: models.CatNDB) -> models.Cat:
 
 def store_cats(cats: List[models.Cat]):
     """Store a list of cats in datastore."""
+    logger.info('Storing %d new cats.', len(cats))
     ndb_cats = [_cat_to_ndb(c) for c in cats]
     with client.context():
         ndb.put_multi(ndb_cats)
@@ -30,6 +33,7 @@ def store_cats(cats: List[models.Cat]):
 
 def retrieve_cats(limit: int = 2, cursor: str = None):
     """Retrieves cats from datastore."""
+    logger.info('Retrieving all cats')
     with client.context():
         query = models.CatNDB.query()
         res, cursor, _ = query.fetch_page(
@@ -43,10 +47,15 @@ def retrieve_cat_by_id(id: str) -> models.Cat:
     """Retrieves a cat by id from datastore."""
     with client.context():
         cat = ndb.Key(urlsafe=id).get()
-        return _ndb_to_cat(cat) if cat is not None else None
+        if cat is None:
+            logger.warning('Cat with ID %s not found', id)
+            return None
+        else:
+            return _ndb_to_cat(cat)
 
 
 def delete_cat(cat: str):
     """Deletes a single cats by its datastore Key."""
     with client.context():
+        logger.info('Removing cat %s', cat)
         ndb.Key(urlsafe=cat).delete()

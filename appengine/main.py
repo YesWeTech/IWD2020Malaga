@@ -1,12 +1,27 @@
 #!/usr/bin/env python
 
 from cats import models, backend
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Path, Request, HTTPException
 import grpc
 from google.protobuf.message import DecodeError
 from typing import List
+import logging
+import log
+import google.cloud.logging
+
 
 app = FastAPI()
+logger = logging.getLogger('app')
+logger.setLevel(logging.DEBUG) # defaults to WARN
+logger.addHandler(log.FastAPILoggingHandler(google.cloud.logging.Client()))
+
+
+@app.middleware('http')
+async def set_curr_request(request: Request, call_next):
+    logger.handlers[0].current_request = request
+    response = await call_next(request)
+    logger.handlers[0].current_request = None
+    return response
 
 
 @app.post('/cats')
@@ -26,7 +41,7 @@ async def retrieve_cats(limit: int = 5, cursor: str = None):
 
 
 @app.get('/cat/{id}', response_model=models.Cat)
-async def retrieve_cat_by_id(id: str):
+async def retrieve_cat_by_id(id: str = Path(..., title='Cat ID')):
     """Retrieve a single cat from database."""
     try:
         cat = backend.retrieve_cat_by_id(id)
@@ -37,7 +52,7 @@ async def retrieve_cat_by_id(id: str):
 
 
 @app.delete('/cat/{id}')
-async def delete_cat(id: str):
+async def delete_cat(id: str = Path(..., title='Cat ID')):
     """Delete a cat from datastore by ID."""
     try:
         backend.delete_cat(id)

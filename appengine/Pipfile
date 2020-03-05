@@ -7,6 +7,7 @@ verify_ssl = true
 fastapi = "*"
 google-cloud-ndb = "*"
 uvicorn = "*"
+google-cloud-logging = "*"
 
 [requires]
 python_version = "3.7"
