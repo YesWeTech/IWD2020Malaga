@@ -47,6 +47,7 @@ async def retrieve_cat_by_id(id: str = Path(..., title='Cat ID')):
         cat = backend.retrieve_cat_by_id(id)
         if cat is None:
             raise HTTPException(status_code=404, detail='Cat not found')
+        return cat
     except DecodeError:
         raise HTTPException(status_code=400, detail='Invalid Cat ID')
 
