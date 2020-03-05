@@ -2,6 +2,7 @@
 
 from cats import models, backend
 from fastapi import FastAPI, Path, Request, HTTPException
+from fastapi.responses import JSONResponse
 import grpc
 from google.protobuf.message import DecodeError
 from typing import List
@@ -9,11 +10,16 @@ import logging
 import log
 import google.cloud.logging
 
-
-app = FastAPI()
 logger = logging.getLogger('app')
 logger.setLevel(logging.DEBUG) # defaults to WARN
 logger.addHandler(log.FastAPILoggingHandler(google.cloud.logging.Client()))
+
+async def server_error(request, exc):
+    logger.exception(exc)
+    return JSONResponse(status_code=500, content={'msg': 'Internal Server Error'})
+
+
+app = FastAPI(title='CaaS - Cats as a Service', exception_handlers={500: server_error})
 
 
 @app.middleware('http')
@@ -48,7 +54,7 @@ async def retrieve_cat_by_id(id: str = Path(..., title='Cat ID')):
         if cat is None:
             raise HTTPException(status_code=404, detail='Cat not found')
         return cat
-    except DecodeError:
+    except (DecodeError, ValueError):
         raise HTTPException(status_code=400, detail='Invalid Cat ID')
 
 
@@ -57,5 +63,5 @@ async def delete_cat(id: str = Path(..., title='Cat ID')):
     """Delete a cat from datastore by ID."""
     try:
         backend.delete_cat(id)
-    except DecodeError:
+    except (DecodeError, ValueError):
         raise HTTPException(status_code=400, detail='Invalid Cat ID')
